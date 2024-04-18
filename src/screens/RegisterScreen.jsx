@@ -12,13 +12,44 @@ export default function RegisterScreen({ navigation }) {
   const [cep, setCep] = useState("");
   const [cidade, setCidade] = useState("");
   const [estado, setEstado] = useState("");
+  const [erro, setErro] = useState("");
   // Nome, Email, Senha, Repetir Senha
   // Endereço: Logradouro, CEP, Cidade, Estado
   // O que é LOGRADOURO? É um termo que designa um terreno ou um espaço anexo a uma habitação, usado para serventia da casa, ou ainda qualquer espaço público comum que pode ser usufruído por toda a população e reconhecido pela administração de um município, como largos, praças, ruas, jardins, parques, entre outros.
+
+  function realizaRegistro() {
+    console.log("Fazer Registro");
+    // o que precisa ser feito?
+    // 1) Validar se todos os campos foram digitados
+    // 2) Validar se as senhas são iguais
+    // 3) Enviar os dados para a API do Firestore junto ao Firebase Auth
+    // 4) Tratar os erros
+    // 5) Redirecionar para a tela de Login
+  }
+
+  function buscaCEP() {
+    console.log("Busca CEP");
+    let cepLimpo = cep.replace("-", "").trim();
+    fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
+      .then((res) => res.json()) // obrigatório em requisições fetch json
+      .then((dados) => {
+        // agora sim vou tratar os dados
+        console.log(dados);
+        setLogradouro(dados.logradouro);
+        setCidade(dados.localidade);
+        setEstado(dados.uf);
+      })
+      .catch((erro) => {
+        // se der erro, cai aqui
+        console.error(erro);
+        setErro("CEP não encontrado");
+      });
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.innerContainer}>
-        <Text>Faça seu Registro</Text>
+        <Text variant="headlineSmall">Faça seu Registro</Text>
         <TextInput
           placeholder="Digite seu nome"
           value={nome}
@@ -50,23 +81,52 @@ export default function RegisterScreen({ navigation }) {
             paddingVertical: 20,
           }}
         >
-          <Text>Dados pessoais</Text>
+          <Text variant="headlineSmall">Dados pessoais</Text>
           <TextInput
-            placeholder="Digite seu CEP"
+            placeholder="Digite seu CEP (somente números)"
             value={cep}
             onChangeText={setCep}
+            onBlur={buscaCEP} // quando o campo perde o foco, busca o CEP
+            keyboardType="numeric" // abre o teclado numérico no celular
+            style={styles.input}
+            maxLength={8} // máximo de 8 caracteres
           />
           <TextInput
             placeholder="Logradouro"
             value={logradouro}
             onChangeText={setLogradouro}
+            style={styles.input}
           />
-          <TextInput
-            placeholder="Cidade"
-            value={cidade}
-            onChangeText={setCidade}
-          />
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+            }}
+          >
+            <TextInput
+              placeholder="Cidade"
+              value={cidade}
+              onChangeText={setCidade}
+              style={{
+                ...styles.input, // utilização do spread operator ou operador de propagação
+                width: "70%",
+              }}
+            />
+            <TextInput
+              placeholder="Estado"
+              value={estado}
+              onChangeText={setEstado}
+              style={{
+                ...styles.input,
+                width: "30%",
+              }}
+              maxLength={2} // máximo de 2 caracteres
+            />
+          </View>
         </View>
+        <Button onPress={realizaRegistro} mode="outlined">
+          Registrar
+        </Button>
         <Button onPress={() => navigation.navigate("LoginScreen")}>
           Voltar ao login
         </Button>
@@ -74,64 +134,3 @@ export default function RegisterScreen({ navigation }) {
     </View>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* import { useState } from "react";
-import { View } from "react-native";
-import { Button, Text, TextInput } from "react-native-paper";
-
- export default function RegisterScreen({ navigation }) {
-    const [emailCad, email] = useState("");
-    const [senhaCad, senha] = useState("");
-    const [telefoneCad, telefone] = useState("");
-    const [idadeCad, idade] = useState("");
-    <View>
-        <Text>Faça seu Registro</Text>
-
-        <TextInput
-        placeholder="Digite seu email"
-        onChangeText={emailCad}
-        value={email}   
-        />
-
-        <TextInput
-        placeholder="Digite seu número de telefone"
-        onChangeText={telefoneCad}
-        value={telefone}   
-        />
-
-        <TextInput
-        placeholder="Digite sua idade"
-        onChangeText={idadeCad}
-        value={idade}   
-        />
-
-        <TextInput
-        placeholder="Digite sua senha"
-        onChangeText={senhaCad}
-        value={senha}
-        secureTextEntry // faz com que o campo seja senha com *
-        />
-
-        <Button onPress={() => navigation.navigate("HomeScreen")}>
-        Volte para o home
-      </Button>
-    </View>
- }
-
- */
