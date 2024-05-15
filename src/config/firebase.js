@@ -8,7 +8,7 @@ const firebaseConfig = {
   storageBucket: "applogin-fdfa7.appspot.com",
   messagingSenderId: "268888553450",
   appId: "1:268888553450:web:19220197d591ec22e36493"
-};
+};0
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app); // para disponibilizar a autenticação
 export const db = getFirestore(app); // para disponibilizar o banco de dados

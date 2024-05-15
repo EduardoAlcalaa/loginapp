@@ -1,9 +1,17 @@
 import { View } from "react-native";
-import { Button, Surface, Text, TextInput } from "react-native-paper";
+import {
+  Button,
+  Surface,
+  Text,
+  TextInput,
+  Modal,
+  Portal,
+} from "react-native-paper";
 import { useState } from "react";
 import { styles } from "../config/styles";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../config/firebase";
+import { auth, db } from "../config/firebase";
+import { collection, doc, setDoc } from "firebase/firestore";
 
 export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -19,67 +27,86 @@ export default function RegisterScreen({ navigation }) {
     senha: false,
     repetirSenha: false,
     nome: false,
+    logradouro: false,
     cep: false,
     cidade: false,
     estado: false,
   });
-  // Nome, Email, Senha, Repetir Senha
-  // Endereço: Logradouro, CEP, Cidade, Estado
-  // O que é LOGRADOURO? É um termo que designa um terreno ou um espaço anexo a uma habitação, usado para serventia da casa, ou ainda qualquer espaço público comum que pode ser usufruído por toda a população e reconhecido pela administração de um município, como largos, praças, ruas, jardins, parques, entre outros.
+
+  const [visible, setVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const showModal = () => setVisible(true);
+  const hideModal = () => setVisible(false);
 
   function realizaRegistro() {
     console.log("Fazer Registro");
-    // o que precisa ser feito?
-    // 1) Validar se todos os campos foram digitados
+
     if (nome === "") {
       setErro({ ...erro, nome: true });
+      setErrorMessage("Nome é obrigatório.");
+      showModal();
       return;
     }
     setErro({ ...erro, nome: false });
+
     if (email === "") {
       setErro({ ...erro, email: true });
+      setErrorMessage("Email é obrigatório.");
+      showModal();
       return;
     }
     setErro({ ...erro, email: false });
+
     if (senha === "") {
       setErro({ ...erro, senha: true });
+      setErrorMessage("Senha é obrigatória.");
+      showModal();
       return;
     }
     setErro({ ...erro, senha: false });
+
     if (repetirSenha === "") {
       setErro({ ...erro, repetirSenha: true });
+      setErrorMessage("Repetir senha é obrigatório.");
+      showModal();
       return;
     }
     setErro({ ...erro, repetirSenha: false });
-    if (cep === "") {
-      setErro({ ...erro, cep: true });
-      return;
-    }
-    setErro({ ...erro, cep: false });
-    if (cidade === "") {
-      setErro({ ...erro, cidade: true });
-      return;
-    }
-    setErro({ ...erro, cidade: false });
-    if (estado === "") {
-      setErro({ ...erro, estado: true });
-      return;
-    }
-    setErro({ ...erro, estado: false });
 
-    // 2) Validar se as senhas são iguais
     if (senha !== repetirSenha) {
       setErro({ ...erro, senha: true, repetirSenha: true });
+      setErrorMessage("As senhas não coincidem.");
+      showModal();
       return;
     }
     setErro({ ...erro, senha: false, repetirSenha: false });
 
-    console.log("Tudo certo para o registro");
-    cadastrarNoFirebase();
+    if (cep === "") {
+      setErro({ ...erro, cep: true });
+      setErrorMessage("CEP é obrigatório.");
+      showModal();
+      return;
+    }
+    setErro({ ...erro, cep: false });
 
-    // 3) Enviar os dados para a API do Firestore junto ao Firebase Auth
-    // 4) Tratar os erros
-    // 5) Redirecionar para a tela de Login
+    if (cidade === "") {
+      setErro({ ...erro, cidade: true });
+      setErrorMessage("Cidade é obrigatória.");
+      showModal();
+      return;
+    }
+    setErro({ ...erro, cidade: false });
+
+    if (estado === "") {
+      setErro({ ...erro, estado: true });
+      setErrorMessage("Estado é obrigatório.");
+      showModal();
+      return;
+    }
+    setErro({ ...erro, estado: false });
+
+    cadastrarNoFirebase();
   }
 
   async function cadastrarNoFirebase() {
@@ -91,8 +118,26 @@ export default function RegisterScreen({ navigation }) {
       );
       const user = userCredential.user;
       console.log("Usuário cadastrado", user);
+
+      const collectionRef = collection(db, "usuarios");
+
+      await setDoc(doc(collectionRef, user.uid), {
+        nome: nome,
+        logradouro: logradouro,
+        cep: cep,
+        cidade: cidade,
+        estado: estado,
+      });
+
+      // Redireciona para a tela de login após o cadastro bem-sucedido
+      navigation.navigate("LoginScreen");
     } catch (error) {
-      console.error(error);
+      if (error.code === "auth/email-already-in-use") {
+        setErrorMessage("Email já está cadastrado.");
+      } else {
+        setErrorMessage("Erro ao cadastrar usuário: " + error.message);
+      }
+      showModal();
     }
   }
 
@@ -101,24 +146,35 @@ export default function RegisterScreen({ navigation }) {
     let cepLimpo = cep.replace("-", "").trim();
     if (cepLimpo.length < 8) return;
     fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
-      .then((res) => res.json()) // obrigatório em requisições fetch json
+      .then((res) => res.json())
       .then((dados) => {
-        // agora sim vou tratar os dados
         console.log(dados);
         setLogradouro(dados.logradouro);
         setCidade(dados.localidade);
         setEstado(dados.uf);
       })
       .catch((erro) => {
-        // se der erro, cai aqui
         console.error(erro);
-        setErro("CEP não encontrado");
+        setErrorMessage("CEP não encontrado");
+        showModal();
       });
   }
 
   return (
     <Surface style={styles.container}>
       <View style={styles.innerContainer}>
+        {/* Modal */}
+        <Portal>
+          <Modal
+            visible={visible}
+            onDismiss={hideModal}
+            contentContainerStyle={{ backgroundColor: "white", padding: 20 }}
+          >
+            <Text>{errorMessage}</Text>
+            <Button onPress={hideModal}>Fechar</Button>
+          </Modal>
+        </Portal>
+        {/* FIM Modal */}
         <Text variant="headlineSmall">Faça seu Registro</Text>
         <TextInput
           placeholder="Digite seu nome"
@@ -150,20 +206,16 @@ export default function RegisterScreen({ navigation }) {
           style={styles.input}
           error={erro.repetirSenha}
         />
-        <View
-          style={{
-            paddingVertical: 20,
-          }}
-        >
+        <View style={{ paddingVertical: 20 }}>
           <Text variant="headlineSmall">Dados pessoais</Text>
           <TextInput
             placeholder="Digite seu CEP (somente números)"
             value={cep}
             onChangeText={setCep}
-            onBlur={buscaCEP} // quando o campo perde o foco, busca o CEP
-            keyboardType="numeric" // abre o teclado numérico no celular
+            onBlur={buscaCEP}
+            keyboardType="numeric"
             style={styles.input}
-            maxLength={8} // máximo de 8 caracteres
+            maxLength={8}
             error={erro.cep}
           />
           <TextInput
@@ -174,30 +226,21 @@ export default function RegisterScreen({ navigation }) {
             error={erro.logradouro}
           />
           <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-            }}
+            style={{ flexDirection: "row", justifyContent: "space-between" }}
           >
             <TextInput
               placeholder="Cidade"
               value={cidade}
               onChangeText={setCidade}
-              style={{
-                ...styles.input, // utilização do spread operator ou operador de propagação
-                width: "70%",
-              }}
+              style={{ ...styles.input, width: "70%" }}
               error={erro.cidade}
             />
             <TextInput
               placeholder="Estado"
               value={estado}
               onChangeText={setEstado}
-              style={{
-                ...styles.input,
-                width: "30%",
-              }}
-              maxLength={2} // máximo de 2 caracteres
+              style={{ ...styles.input, width: "30%" }}
+              maxLength={2}
               error={erro.estado}
             />
           </View>
